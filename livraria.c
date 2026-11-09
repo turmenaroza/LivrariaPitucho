@@ -227,3 +227,331 @@ int lerPreco(const char *msg)
     }
 }
 
+/* ============================== AUXILIARES ============================== */
+
+/* Compara duas strings ignorando maiusculas/minusculas (usa strcmp). */
+int compararSemCase(const char *a, const char *b)
+{
+    char ma[TAM_AUX];
+    char mb[TAM_AUX];
+    int i;
+
+    for (i = 0; a[i] != '\0' && i < TAM_AUX - 1; i++) {
+        ma[i] = (char)tolower((unsigned char)a[i]);
+    }
+    ma[i] = '\0';
+    for (i = 0; b[i] != '\0' && i < TAM_AUX - 1; i++) {
+        mb[i] = (char)tolower((unsigned char)b[i]);
+    }
+    mb[i] = '\0';
+
+    return strcmp(ma, mb);
+}
+
+/* Converte centavos para o texto "R$ 12,34". */
+void formatarPreco(long long centavos, char *saida)
+{
+    sprintf(saida, "R$ %lld,%02lld", centavos / 100, centavos % 100);
+}
+
+/* Proximo codigo livre: maior codigo existente + 1 (comeca em 101). */
+int proximoCodigo(int dados[][COLUNAS], int total)
+{
+    int i;
+    int maior = 100;
+
+    for (i = 0; i < total; i++) {
+        if (dados[i][COL_CODIGO] > maior) {
+            maior = dados[i][COL_CODIGO];
+        }
+    }
+    return maior + 1;
+}
+
+/* ========================= CADASTRO E EXIBICAO ========================== */
+
+/* Coloca um livro na proxima posicao livre de todos os vetores paralelos. */
+int adicionarLivro(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                   char categorias[][TAM_CATEGORIA], int dados[][COLUNAS],
+                   int *total, const char *titulo, const char *autor,
+                   const char *categoria, int ano, int estoque, int preco,
+                   int vendidos, int autorLocal)
+{
+    int pos;
+
+    if (*total >= MAX_LIVROS) {
+        return 0;
+    }
+    pos = *total;
+
+    strcpy(titulos[pos], titulo);
+    strcpy(autores[pos], autor);
+    strcpy(categorias[pos], categoria);
+
+    dados[pos][COL_CODIGO]   = proximoCodigo(dados, *total);
+    dados[pos][COL_ANO]      = ano;
+    dados[pos][COL_ESTOQUE]  = estoque;
+    dados[pos][COL_PRECO]    = preco;
+    dados[pos][COL_VENDIDOS] = vendidos;
+    dados[pos][COL_LOCAL]    = autorLocal;
+
+    (*total)++;
+    return 1;
+}
+
+int adicionarCliente(char clientes[][TAM_NOME], int compras[][COLUNAS_CLIENTE],
+                     int *totalClientes, const char *nome)
+{
+    int pos;
+
+    if (*totalClientes >= MAX_CLIENTES) {
+        return 0;
+    }
+    pos = *totalClientes;
+    strcpy(clientes[pos], nome);
+    compras[pos][COL_C_COMPRAS] = 0;
+    compras[pos][COL_C_GASTO]   = 0;
+    (*totalClientes)++;
+    return 1;
+}
+
+/* Dados de exemplo para o sistema ja abrir com alguma coisa na livraria. */
+void carregarDadosIniciais(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                           char categorias[][TAM_CATEGORIA], int dados[][COLUNAS],
+                           int *totalLivros, char clientes[][TAM_NOME],
+                           int compras[][COLUNAS_CLIENTE], int *totalClientes)
+{
+    /*                  titulo                          autor                   categoria      ano  est  preco vend local */
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Dom Casmurro", "Machado de Assis", "Romance", 1899, 8, 3490, 12, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Capitaes da Areia", "Jorge Amado", "Romance", 1937, 5, 4290, 9, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "O Pequeno Principe", "Antoine de Saint-Exupery", "Infantil", 1943, 15, 2990, 20, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Vidas Secas", "Graciliano Ramos", "Romance", 1938, 2, 3790, 7, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Memorias Postumas de Bras Cubas", "Machado de Assis", "Romance", 1881, 6, 3990, 4, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Codigo Limpo", "Robert C. Martin", "Tecnico", 2008, 4, 9990, 6, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Harry Potter e a Pedra Filosofal", "J. K. Rowling", "Fantasia", 1997, 10, 5490, 18, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "A Hora da Estrela", "Clarice Lispector", "Romance", 1977, 1, 3290, 3, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Sapiens", "Yuval Noah Harari", "Nao ficcao", 2011, 7, 6990, 11, 0);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "O Alquimista", "Paulo Coelho", "Romance", 1988, 9, 3990, 14, 0);
+    /* autores locais (nomes de exemplo, troquem pelos autores da cidade) */
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Historias da Rua do Mercado", "Helena Prado", "Autor local", 2019, 6, 4500, 8, 1);
+    adicionarLivro(titulos, autores, categorias, dados, totalLivros,
+                   "Poemas de Fim de Tarde", "Rafael Duarte", "Autor local", 2021, 2, 3200, 5, 1);
+
+    /* clientes de exemplo */
+    adicionarCliente(clientes, compras, totalClientes, "Maria Souza");
+    adicionarCliente(clientes, compras, totalClientes, "Carlos Pereira");
+    adicionarCliente(clientes, compras, totalClientes, "Ana Beatriz Lima");
+    compras[0][COL_C_COMPRAS] = 5; compras[0][COL_C_GASTO] = 21450;
+    compras[1][COL_C_COMPRAS] = 2; compras[1][COL_C_GASTO] = 12980;
+    compras[2][COL_C_COMPRAS] = 3; compras[2][COL_C_GASTO] = 15470;
+}
+
+void cadastrarLivro(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                    char categorias[][TAM_CATEGORIA], int dados[][COLUNAS],
+                    int *total)
+{
+    char titulo[TAM_TITULO];
+    char autor[TAM_AUTOR];
+    char categoria[TAM_CATEGORIA];
+    int ano, estoque, preco, autorLocal;
+
+    printf("\n--- CADASTRAR LIVRO ---\n");
+
+    if (*total >= MAX_LIVROS) {
+        printf("O acervo esta cheio (%d livros). Nao e possivel cadastrar mais.\n", MAX_LIVROS);
+        return;
+    }
+
+    lerTexto("Titulo: ", titulo, TAM_TITULO);
+    if (strlen(titulo) == 0) {
+        printf("O titulo nao pode ficar vazio. Cadastro cancelado.\n");
+        return;
+    }
+    if (buscarLivro(titulos, *total, titulo) != -1) {
+        printf("Ja existe um livro com esse titulo. Para colocar mais exemplares, use a opcao 5 do menu.\n");
+        return;
+    }
+
+    lerTexto("Autor: ", autor, TAM_AUTOR);
+    if (strlen(autor) == 0) {
+        printf("O autor nao pode ficar vazio. Cadastro cancelado.\n");
+        return;
+    }
+    lerTexto("Categoria (ex: Romance, Tecnico, Infantil): ", categoria, TAM_CATEGORIA);
+    if (strlen(categoria) == 0) {
+        printf("A categoria nao pode ficar vazia. Cadastro cancelado.\n");
+        return;
+    }
+
+    ano        = lerInteiro("Ano de publicacao: ", 1450, 2026);
+    estoque    = lerInteiro("Quantidade em estoque: ", 1, ESTOQUE_MAXIMO);
+    preco      = lerPreco("Preco (em reais, ex: 39,90): ");
+    autorLocal = lerInteiro("Autor local? (1 = sim, 0 = nao): ", 0, 1);
+
+    if (adicionarLivro(titulos, autores, categorias, dados, total,
+                       titulo, autor, categoria, ano, estoque, preco, 0, autorLocal)) {
+        printf("Livro cadastrado com sucesso! Codigo: %d\n", dados[*total - 1][COL_CODIGO]);
+    } else {
+        printf("Nao foi possivel cadastrar o livro.\n");
+    }
+}
+
+void cadastrarCliente(char clientes[][TAM_NOME], int compras[][COLUNAS_CLIENTE],
+                      int *totalClientes)
+{
+    char nome[TAM_NOME];
+
+    printf("\n--- CADASTRAR CLIENTE ---\n");
+
+    if (*totalClientes >= MAX_CLIENTES) {
+        printf("Limite de clientes atingido (%d).\n", MAX_CLIENTES);
+        return;
+    }
+
+    lerTexto("Nome do cliente: ", nome, TAM_NOME);
+    if (strlen(nome) == 0) {
+        printf("O nome nao pode ficar vazio. Cadastro cancelado.\n");
+        return;
+    }
+    if (buscarCliente(clientes, *totalClientes, nome) != -1) {
+        printf("Esse cliente ja esta cadastrado.\n");
+        return;
+    }
+
+    if (adicionarCliente(clientes, compras, totalClientes, nome)) {
+        printf("Cliente cadastrado com sucesso!\n");
+    }
+}
+
+void mostrarLivro(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                  char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int i)
+{
+    char precoTxt[24];
+
+    formatarPreco(dados[i][COL_PRECO], precoTxt);
+    printf("\n  Codigo.........: %d\n", dados[i][COL_CODIGO]);
+    printf("  Titulo.........: %s\n", titulos[i]);
+    printf("  Autor..........: %s\n", autores[i]);
+    printf("  Categoria......: %s\n", categorias[i]);
+    printf("  Ano............: %d\n", dados[i][COL_ANO]);
+    printf("  Preco..........: %s\n", precoTxt);
+    printf("  Estoque........: %d unidade(s)\n", dados[i][COL_ESTOQUE]);
+    printf("  Vendidos.......: %d unidade(s)\n", dados[i][COL_VENDIDOS]);
+    printf("  Autor local....: %s\n", dados[i][COL_LOCAL] ? "Sim" : "Nao");
+}
+
+void listarAcervo(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                  char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int total)
+{
+    int i;
+    char precoTxt[24];
+
+    if (total == 0) {
+        printf("\nO acervo esta vazio.\n");
+        return;
+    }
+
+    printf("\n%-5s %-30s %-20s %-12s %-5s %-7s %-11s %-6s %-5s\n",
+           "Cod", "Titulo", "Autor", "Categoria", "Ano", "Estoque", "Preco", "Vend.", "Local");
+    printf("----------------------------------------------------------------------------------------------------\n");
+    for (i = 0; i < total; i++) {
+        formatarPreco(dados[i][COL_PRECO], precoTxt);
+        printf("%-5d %-30.30s %-20.20s %-12.12s %-5d %-7d %-11s %-6d %-5s\n",
+               dados[i][COL_CODIGO], titulos[i], autores[i], categorias[i],
+               dados[i][COL_ANO], dados[i][COL_ESTOQUE], precoTxt,
+               dados[i][COL_VENDIDOS], dados[i][COL_LOCAL] ? "Sim" : "Nao");
+    }
+    printf("----------------------------------------------------------------------------------------------------\n");
+    printf("Total de titulos no acervo: %d\n", total);
+}
+
+/* ================================= BUSCA ================================ */
+
+/* Busca linear: recebe a matriz de titulos e devolve a posicao (ou -1). */
+int buscarLivro(char lista[][TAM_TITULO], int total, const char *procurado)
+{
+    int i;
+
+    for (i = 0; i < total; i++) {
+        if (compararSemCase(lista[i], procurado) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int buscarCliente(char lista[][TAM_NOME], int total, const char *procurado)
+{
+    int i;
+
+    for (i = 0; i < total; i++) {
+        if (compararSemCase(lista[i], procurado) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/* Quando nao acha o titulo exato, mostra titulos que contem o texto digitado. */
+int sugerirTitulos(char lista[][TAM_TITULO], int total, const char *procurado)
+{
+    int i, j, achou = 0;
+    char minusc[TAM_AUX];
+    char titMinusc[TAM_AUX];
+
+    if (strlen(procurado) == 0) {
+        return 0;
+    }
+
+    for (j = 0; procurado[j] != '\0' && j < TAM_AUX - 1; j++) {
+        minusc[j] = (char)tolower((unsigned char)procurado[j]);
+    }
+    minusc[j] = '\0';
+
+    for (i = 0; i < total; i++) {
+        for (j = 0; lista[i][j] != '\0' && j < TAM_AUX - 1; j++) {
+            titMinusc[j] = (char)tolower((unsigned char)lista[i][j]);
+        }
+        titMinusc[j] = '\0';
+
+        if (strstr(titMinusc, minusc) != NULL) {
+            if (!achou) {
+                printf("Voce quis dizer algum destes?\n");
+            }
+            printf("  - %s\n", lista[i]);
+            achou++;
+        }
+    }
+    return achou;
+}
+
+void menuBuscar(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int total)
+{
+    char titulo[TAM_TITULO];
+    int pos;
+
+    printf("\n--- BUSCAR LIVRO POR TITULO ---\n");
+    lerTexto("Titulo: ", titulo, TAM_TITULO);
+
+    pos = buscarLivro(titulos, total, titulo);
+    if (pos == -1) {
+        printf("Livro nao encontrado.\n");
+        sugerirTitulos(titulos, total, titulo);
+    } else {
+        mostrarLivro(titulos, autores, categorias, dados, pos);
+    }
+}
+
+
