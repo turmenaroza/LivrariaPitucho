@@ -554,4 +554,272 @@ void menuBuscar(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
     }
 }
 
+/* ============================== ORDENACAO =============================== */
+
+/* Retorna 1 se o livro i deve vir DEPOIS do livro j no criterio escolhido.
+ * criterio 1 = titulo (A-Z), 2 = preco (menor primeiro), 3 = mais vendidos */
+int deveTrocar(char titulos[][TAM_TITULO], int dados[][COLUNAS], int i, int j, int criterio)
+{
+    switch (criterio) {
+        case 1:
+            return compararSemCase(titulos[i], titulos[j]) > 0;
+        case 2:
+            return dados[i][COL_PRECO] > dados[j][COL_PRECO];
+        case 3:
+            return dados[i][COL_VENDIDOS] < dados[j][COL_VENDIDOS];
+        default:
+            return 0;
+    }
+}
+
+/* Troca as posicoes i e j em TODOS os vetores/matrizes paralelos. */
+void trocarLivros(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                  char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int i, int j)
+{
+    char tmpTitulo[TAM_TITULO];
+    char tmpAutor[TAM_AUTOR];
+    char tmpCategoria[TAM_CATEGORIA];
+    int tmpNum;
+    int c;
+
+    strcpy(tmpTitulo, titulos[i]);
+    strcpy(titulos[i], titulos[j]);
+    strcpy(titulos[j], tmpTitulo);
+
+    strcpy(tmpAutor, autores[i]);
+    strcpy(autores[i], autores[j]);
+    strcpy(autores[j], tmpAutor);
+
+    strcpy(tmpCategoria, categorias[i]);
+    strcpy(categorias[i], categorias[j]);
+    strcpy(categorias[j], tmpCategoria);
+
+    for (c = 0; c < COLUNAS; c++) {
+        tmpNum = dados[i][c];
+        dados[i][c] = dados[j][c];
+        dados[j][c] = tmpNum;
+    }
+}
+
+/* Bubble Sort implementado manualmente. */
+void ordenarAcervo(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                   char categorias[][TAM_CATEGORIA], int dados[][COLUNAS],
+                   int total, int criterio)
+{
+    int i, j;
+
+    for (i = 0; i < total - 1; i++) {
+        for (j = 0; j < total - 1 - i; j++) {
+            if (deveTrocar(titulos, dados, j, j + 1, criterio)) {
+                trocarLivros(titulos, autores, categorias, dados, j, j + 1);
+            }
+        }
+    }
+}
+
+void menuListar(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int total)
+{
+    int criterio;
+
+    printf("\n--- LISTAR ACERVO ---\n");
+    printf("1 - Ordenar por titulo (A-Z)\n");
+    printf("2 - Ordenar por preco (menor para maior)\n");
+    printf("3 - Ordenar por mais vendidos\n");
+    printf("0 - Listar sem ordenar\n");
+    criterio = lerInteiro("Escolha: ", 0, 3);
+
+    if (criterio != 0) {
+        ordenarAcervo(titulos, autores, categorias, dados, total, criterio);
+    }
+    listarAcervo(titulos, autores, categorias, dados, total);
+}
+
+/* ======================= ALTERACAO, VENDAS E ESTOQUE ==================== */
+
+/* Altera uma celula da matriz depois de conferir linha e coluna. */
+int alterarCelula(int matriz[][COLUNAS], int totalLinhas, int linha, int coluna, int novoValor)
+{
+    if (linha < 0 || linha >= totalLinhas) {
+        printf("Linha invalida.\n");
+        return 0;
+    }
+    if (coluna < 0 || coluna >= COLUNAS) {
+        printf("Coluna invalida.\n");
+        return 0;
+    }
+    matriz[linha][coluna] = novoValor;
+    return 1;
+}
+
+void registrarVenda(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                    char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int total,
+                    char clientes[][TAM_NOME], int compras[][COLUNAS_CLIENTE],
+                    int totalClientes, long long *faturamento, int *itensVendidos)
+{
+    char titulo[TAM_TITULO];
+    char nomeCliente[TAM_NOME];
+    char precoTxt[24];
+    int pos, posCliente, qtd, confirma;
+    long long valor;
+
+    printf("\n--- REGISTRAR VENDA ---\n");
+    lerTexto("Titulo do livro: ", titulo, TAM_TITULO);
+
+    pos = buscarLivro(titulos, total, titulo);
+    if (pos == -1) {
+        printf("Livro nao encontrado.\n");
+        sugerirTitulos(titulos, total, titulo);
+        return;
+    }
+
+    mostrarLivro(titulos, autores, categorias, dados, pos);
+    if (dados[pos][COL_ESTOQUE] == 0) {
+        printf("\nEste livro esta sem estoque no momento.\n");
+        return;
+    }
+
+    qtd = lerInteiro("\nQuantidade vendida: ", 1, dados[pos][COL_ESTOQUE]);
+
+    lerTexto("Cliente cadastrado (ENTER para venda sem cadastro): ", nomeCliente, TAM_NOME);
+    posCliente = -1;
+    if (strlen(nomeCliente) > 0) {
+        posCliente = buscarCliente(clientes, totalClientes, nomeCliente);
+        if (posCliente == -1) {
+            printf("Cliente nao cadastrado. A venda sera registrada sem cliente.\n");
+        } else {
+            printf("Cliente: %s\n", clientes[posCliente]);
+        }
+    }
+
+    valor = (long long)qtd * dados[pos][COL_PRECO];
+    formatarPreco(valor, precoTxt);
+    printf("\nTotal da venda: %s (%d x %s)\n", precoTxt, qtd, titulos[pos]);
+    confirma = lerInteiro("Confirmar venda? (1 = sim, 0 = nao): ", 0, 1);
+
+    if (!confirma) {
+        printf("Venda cancelada.\n");
+        return;
+    }
+
+    alterarCelula(dados, total, pos, COL_ESTOQUE, dados[pos][COL_ESTOQUE] - qtd);
+    alterarCelula(dados, total, pos, COL_VENDIDOS, dados[pos][COL_VENDIDOS] + qtd);
+
+    if (posCliente != -1) {
+        compras[posCliente][COL_C_COMPRAS] += 1;
+        compras[posCliente][COL_C_GASTO]   += (int)valor;
+    }
+    *faturamento += valor;
+    *itensVendidos += qtd;
+
+    printf("Venda registrada! Estoque restante: %d\n", dados[pos][COL_ESTOQUE]);
+    if (dados[pos][COL_ESTOQUE] <= LIMITE_ESTOQUE_BAIXO) {
+        printf("Atencao: estoque baixo. Vale repor este titulo.\n");
+    }
+}
+
+void editarLivro(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                 char categorias[][TAM_CATEGORIA], int dados[][COLUNAS], int total)
+{
+    char titulo[TAM_TITULO];
+    int pos, opcao, qtd, novo;
+
+    printf("\n--- REPOR ESTOQUE / EDITAR LIVRO ---\n");
+    lerTexto("Titulo do livro: ", titulo, TAM_TITULO);
+
+    pos = buscarLivro(titulos, total, titulo);
+    if (pos == -1) {
+        printf("Livro nao encontrado.\n");
+        sugerirTitulos(titulos, total, titulo);
+        return;
+    }
+    mostrarLivro(titulos, autores, categorias, dados, pos);
+
+    printf("\n1 - Repor estoque (somar unidades)\n");
+    printf("2 - Corrigir preco\n");
+    printf("3 - Definir estoque exato (contagem)\n");
+    printf("4 - Marcar/desmarcar como autor local\n");
+    printf("5 - Tirar de linha (zerar estoque)\n");
+    printf("0 - Voltar\n");
+    opcao = lerInteiro("Escolha: ", 0, 5);
+
+    switch (opcao) {
+        case 1:
+            qtd = lerInteiro("Quantidade a adicionar: ", 1, ESTOQUE_MAXIMO);
+            novo = dados[pos][COL_ESTOQUE] + qtd;
+            if (novo > ESTOQUE_MAXIMO) {
+                printf("O estoque nao pode passar de %d unidades.\n", ESTOQUE_MAXIMO);
+            } else if (alterarCelula(dados, total, pos, COL_ESTOQUE, novo)) {
+                printf("Estoque atualizado: %d unidades.\n", novo);
+            }
+            break;
+        case 2:
+            novo = lerPreco("Novo preco (em reais): ");
+            if (alterarCelula(dados, total, pos, COL_PRECO, novo)) {
+                printf("Preco atualizado.\n");
+            }
+            break;
+        case 3:
+            novo = lerInteiro("Estoque correto: ", 0, ESTOQUE_MAXIMO);
+            if (alterarCelula(dados, total, pos, COL_ESTOQUE, novo)) {
+                printf("Estoque atualizado: %d unidades.\n", novo);
+            }
+            break;
+        case 4:
+            novo = !dados[pos][COL_LOCAL];
+            if (alterarCelula(dados, total, pos, COL_LOCAL, novo)) {
+                printf("Agora este livro %s de autor local.\n", novo ? "e" : "NAO e");
+            }
+            break;
+        case 5:
+            if (alterarCelula(dados, total, pos, COL_ESTOQUE, 0)) {
+                printf("Livro tirado de linha (estoque zerado).\n");
+            }
+            break;
+        case 0:
+            printf("Nenhuma alteracao feita.\n");
+            break;
+        default:
+            printf("Opcao invalida.\n");
+    }
+}
+
+/* =========================== FUNCOES RECURSIVAS ========================= */
+
+/* Soma recursiva do estoque dos primeiros n livros. */
+int totalEstoqueRec(int dados[][COLUNAS], int n)
+{
+    if (n == 0) {
+        return 0;
+    }
+    return dados[n - 1][COL_ESTOQUE] + totalEstoqueRec(dados, n - 1);
+}
+
+/* Soma recursiva do valor (preco x estoque) dos primeiros n livros, em centavos. */
+long long valorEstoqueRec(int dados[][COLUNAS], int n)
+{
+    if (n == 0) {
+        return 0;
+    }
+    return (long long)dados[n - 1][COL_PRECO] * dados[n - 1][COL_ESTOQUE]
+           + valorEstoqueRec(dados, n - 1);
+}
+
+/* Lista recursivamente os livros com estoque baixo e devolve quantos achou. */
+int listarEstoqueBaixoRec(char titulos[][TAM_TITULO], int dados[][COLUNAS],
+                          int total, int indice)
+{
+    int achou = 0;
+
+    if (indice >= total) {
+        return 0;
+    }
+    if (dados[indice][COL_ESTOQUE] <= LIMITE_ESTOQUE_BAIXO) {
+        printf("  - %-34.34s (cod %d) estoque: %d\n", titulos[indice],
+               dados[indice][COL_CODIGO], dados[indice][COL_ESTOQUE]);
+        achou = 1;
+    }
+    return achou + listarEstoqueBaixoRec(titulos, dados, total, indice + 1);
+}
+
 
