@@ -822,4 +822,236 @@ int listarEstoqueBaixoRec(char titulos[][TAM_TITULO], int dados[][COLUNAS],
     return achou + listarEstoqueBaixoRec(titulos, dados, total, indice + 1);
 }
 
+/* ============================== RELATORIOS ============================== */
 
+/* Ranking dos mais vendidos. Usa um vetor de indices + Selection Sort, entao
+ * a ordem do acervo nao e alterada. */
+void rankingLivros(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                   int dados[][COLUNAS], int total)
+{
+    int ordem[MAX_LIVROS];
+    int i, j, maior, tmp, posicao;
+
+    for (i = 0; i < total; i++) {
+        ordem[i] = i;
+    }
+    for (i = 0; i < total - 1; i++) {
+        maior = i;
+        for (j = i + 1; j < total; j++) {
+            if (dados[ordem[j]][COL_VENDIDOS] > dados[ordem[maior]][COL_VENDIDOS]) {
+                maior = j;
+            }
+        }
+        tmp = ordem[i];
+        ordem[i] = ordem[maior];
+        ordem[maior] = tmp;
+    }
+
+    printf("\n--- RANKING DOS MAIS VENDIDOS ---\n");
+    posicao = 0;
+    for (i = 0; i < total && posicao < 10; i++) {
+        if (dados[ordem[i]][COL_VENDIDOS] > 0) {
+            posicao++;
+            printf("%2d. %-34.34s %-20.20s %d vendido(s)\n", posicao,
+                   titulos[ordem[i]], autores[ordem[i]], dados[ordem[i]][COL_VENDIDOS]);
+        }
+    }
+    if (posicao == 0) {
+        printf("Ainda nao ha vendas registradas.\n");
+    }
+}
+
+void listarAutoresLocais(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                         int dados[][COLUNAS], int total)
+{
+    int i, achou = 0;
+    char precoTxt[24];
+
+    printf("\n--- DESTAQUE: AUTORES LOCAIS ---\n");
+    for (i = 0; i < total; i++) {
+        if (dados[i][COL_LOCAL] == 1) {
+            formatarPreco(dados[i][COL_PRECO], precoTxt);
+            printf("  - %-32.32s %-18.18s %-11s estoque: %d | vendidos: %d\n",
+                   titulos[i], autores[i], precoTxt,
+                   dados[i][COL_ESTOQUE], dados[i][COL_VENDIDOS]);
+            achou++;
+        }
+    }
+    if (!achou) {
+        printf("Nenhum livro de autor local cadastrado.\n");
+    }
+}
+
+/* Melhores clientes (por valor gasto), tambem com vetor de indices. */
+void rankingClientes(char clientes[][TAM_NOME], int compras[][COLUNAS_CLIENTE],
+                     int totalClientes)
+{
+    int ordem[MAX_CLIENTES];
+    int i, j, maior, tmp, posicao;
+    char gastoTxt[24];
+
+    for (i = 0; i < totalClientes; i++) {
+        ordem[i] = i;
+    }
+    for (i = 0; i < totalClientes - 1; i++) {
+        maior = i;
+        for (j = i + 1; j < totalClientes; j++) {
+            if (compras[ordem[j]][COL_C_GASTO] > compras[ordem[maior]][COL_C_GASTO]) {
+                maior = j;
+            }
+        }
+        tmp = ordem[i];
+        ordem[i] = ordem[maior];
+        ordem[maior] = tmp;
+    }
+
+    printf("\n--- MELHORES CLIENTES ---\n");
+    posicao = 0;
+    for (i = 0; i < totalClientes && posicao < 10; i++) {
+        if (compras[ordem[i]][COL_C_GASTO] > 0) {
+            posicao++;
+            formatarPreco(compras[ordem[i]][COL_C_GASTO], gastoTxt);
+            printf("%2d. %-25.25s %2d compra(s)  total gasto: %s\n", posicao,
+                   clientes[ordem[i]], compras[ordem[i]][COL_C_COMPRAS], gastoTxt);
+        }
+    }
+    if (posicao == 0) {
+        printf("Ainda nao ha compras de clientes cadastrados.\n");
+    }
+}
+
+void menuRelatorios(char titulos[][TAM_TITULO], char autores[][TAM_AUTOR],
+                    int dados[][COLUNAS], int total, char clientes[][TAM_NOME],
+                    int compras[][COLUNAS_CLIENTE], int totalClientes,
+                    long long faturamento, int itensVendidos)
+{
+    int opcao, achou;
+    char valorTxt[32];
+
+    do {
+        printf("\n--- RELATORIOS ---\n");
+        printf("1 - Valor total do estoque\n");
+        printf("2 - Total de livros em estoque\n");
+        printf("3 - Livros com estoque baixo (%d ou menos)\n", LIMITE_ESTOQUE_BAIXO);
+        printf("4 - Ranking dos mais vendidos\n");
+        printf("5 - Destaque dos autores locais\n");
+        printf("6 - Melhores clientes\n");
+        printf("7 - Vendas feitas nesta execucao\n");
+        printf("0 - Voltar ao menu principal\n");
+        opcao = lerInteiro("Escolha: ", 0, 7);
+
+        switch (opcao) {
+            case 1:
+                formatarPreco(valorEstoqueRec(dados, total), valorTxt);
+                printf("\nValor total parado em estoque: %s\n", valorTxt);
+                break;
+            case 2:
+                printf("\nTotal de livros em estoque: %d unidade(s) em %d titulo(s)\n",
+                       totalEstoqueRec(dados, total), total);
+                break;
+            case 3:
+                printf("\n--- ESTOQUE BAIXO ---\n");
+                achou = listarEstoqueBaixoRec(titulos, dados, total, 0);
+                if (achou == 0) {
+                    printf("Nenhum livro com estoque baixo.\n");
+                } else {
+                    printf("%d titulo(s) para repor.\n", achou);
+                }
+                break;
+            case 4:
+                rankingLivros(titulos, autores, dados, total);
+                break;
+            case 5:
+                listarAutoresLocais(titulos, autores, dados, total);
+                break;
+            case 6:
+                rankingClientes(clientes, compras, totalClientes);
+                break;
+            case 7:
+                formatarPreco(faturamento, valorTxt);
+                printf("\nLivros vendidos: %d unidade(s)\n", itensVendidos);
+                printf("Faturamento: %s\n", valorTxt);
+                break;
+            case 0:
+                break;
+            default:
+                printf("Opcao invalida.\n");
+        }
+    } while (opcao != 0);
+}
+
+/* ================================== MAIN ================================ */
+
+int main(void)
+{
+    /* vetores e matrizes paralelos dos livros */
+    char titulos[MAX_LIVROS][TAM_TITULO];
+    char autores[MAX_LIVROS][TAM_AUTOR];
+    char categorias[MAX_LIVROS][TAM_CATEGORIA];
+    int  dados[MAX_LIVROS][COLUNAS];
+
+    /* vetores e matrizes paralelos dos clientes */
+    char clientes[MAX_CLIENTES][TAM_NOME];
+    int  compras[MAX_CLIENTES][COLUNAS_CLIENTE];
+
+    int totalLivros = 0;
+    int totalClientes = 0;
+    int opcao;
+    long long faturamento = 0;
+    int itensVendidos = 0;
+
+    carregarDadosIniciais(titulos, autores, categorias, dados, &totalLivros,
+                          clientes, compras, &totalClientes);
+
+    printf("========================================\n");
+    printf("        LIVRARIA PITUCHO - Sistema      \n");
+    printf("========================================\n");
+
+    do {
+        printf("\n========== MENU PRINCIPAL ==========\n");
+        printf("1 - Cadastrar livro\n");
+        printf("2 - Listar acervo (com ordenacao)\n");
+        printf("3 - Buscar livro por titulo\n");
+        printf("4 - Registrar venda\n");
+        printf("5 - Repor estoque / editar livro\n");
+        printf("6 - Cadastrar cliente\n");
+        printf("7 - Relatorios\n");
+        printf("0 - Sair\n");
+        printf("====================================\n");
+        opcao = lerInteiro("Escolha uma opcao: ", 0, 7);
+
+        switch (opcao) {
+            case 1:
+                cadastrarLivro(titulos, autores, categorias, dados, &totalLivros);
+                break;
+            case 2:
+                menuListar(titulos, autores, categorias, dados, totalLivros);
+                break;
+            case 3:
+                menuBuscar(titulos, autores, categorias, dados, totalLivros);
+                break;
+            case 4:
+                registrarVenda(titulos, autores, categorias, dados, totalLivros,
+                               clientes, compras, totalClientes,
+                               &faturamento, &itensVendidos);
+                break;
+            case 5:
+                editarLivro(titulos, autores, categorias, dados, totalLivros);
+                break;
+            case 6:
+                cadastrarCliente(clientes, compras, &totalClientes);
+                break;
+            case 7:
+                menuRelatorios(titulos, autores, dados, totalLivros, clientes,
+                               compras, totalClientes, faturamento, itensVendidos);
+                break;
+            case 0:
+                printf("\nEncerrando o sistema da Livraria Pitucho. Ate logo!\n");
+                break;
+            default:
+                printf("Opcao invalida. Tente novamente.\n");
+        }
+    } while (opcao != 0);
+
+    return 0;
+}
